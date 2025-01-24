@@ -22,6 +22,7 @@ get_assigned_packages <- function(
 check_github_issues <- function(issues, base_repo_dir = ".") {
     # Process each issue
     for (issue in issues) {
+        # Set working directory to repository
         oldwd <- setwd(base_repo_dir)
         # Extract repository information from issue body
         repo_url <- extract_repo_url(issue$body)
@@ -37,9 +38,6 @@ check_github_issues <- function(issues, base_repo_dir = ".") {
             } else {
                 gert::git_pull(repo = repo_path)
             }
-
-            # Set working directory to repository
-            setwd(repo_path)
 
             # Prepare output file paths
             build_log <- file.path(
@@ -74,15 +72,42 @@ check_github_issues <- function(issues, base_repo_dir = ".") {
     }
 }
 
-# Helper function to extract repository URL from issue body
-extract_repo_url <- function(body) {
+# extract repository URLs from body and comments
+extract_repo_urls <- function(
+    body, org = "Bioconductor", repo = "contributions", issue_number = NULL
+) {
     # Regular expression to find GitHub repository URLs
     url_pattern <- "https://github\\.com/[a-zA-Z0-9-]+/[a-zA-Z0-9-]+"
-    urls <- regmatches(body, gregexpr(url_pattern, body))[[1]]
+    additional_package_pattern <-
+        "AdditionalPackage: (https://github\\.com/[a-zA-Z0-9-]+/[a-zA-Z0-9-]+)"
 
-    if (length(urls) > 0) {
-        return(urls[1])  # Return first repository URL found
+    # Extract URLs from body
+    body_urls <- regmatches(body, gregexpr(url_pattern, body))[[1]]
+
+    # Extract URLs from comments if issue_number is provided
+    comment_urls <- c()
+    if (!is.null(issue_number)) {
+        comments <- gh::gh(
+            "/repos/{owner}/{repo}/issues/{issue_number}/comments",
+            owner = repo_owner,
+            repo = repo_name,
+            issue_number = issue_number
+        )
+
+        for (comment in comments) {
+            # Look for AdditionalPackage: URLs
+            urls <- regmatches(
+                comment$body,
+                gregexpr(additional_package_pattern, comment$body, perl = TRUE)
+            )
+            if (length(urls[[1]]) > 0) {
+                # Extract the actual URL
+                extracted_urls <- gsub("AdditionalPackage: ", "", urls[[1]])
+                comment_urls <- c(comment_urls, extracted_urls)
+            }
+        }
     }
 
-    return(NULL)
+    # Combine and return unique URLs
+    return(unique(c(body_urls, comment_urls)))
 }
