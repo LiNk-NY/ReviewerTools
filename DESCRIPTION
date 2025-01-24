@@ -1,0 +1,17 @@
+Package: ReviewerTools
+Title: Helps Bioconductor Package Reviewers generate outputs
+Version: 0.99.0
+Authors@R: 
+    person("Marcel", "Ramos", , "marcel.ramos@sph.cuny.edu", c("aut", "cre"))
+Description: Clone and update packages from Bioconductor contributions
+    GitHub repository. Run R CMD build and check and generate a text
+    file of the results.
+Imports:
+    BiocManager,
+    gert,
+    gh,
+    remotes
+License: Artistic-2.0
+Encoding: UTF-8
+Roxygen: list(markdown = TRUE)
+RoxygenNote: 7.3.2
