@@ -1,6 +1,8 @@
 #' @examples
 #' reviews <- get_assigned_packages("LiNk-NY")
-#' check_github_issues(reviews)
+#' list_assigned_issues(reviews)
+#' get_additional_packages(reviews[[2L]])
+#' check_github_issues(reviews, base_repo_dir = "~/reviews")
 #' @export
 get_assigned_packages <- function(
     username,  org = "Bioconductor",  repo = "contributions"
@@ -17,15 +19,23 @@ get_assigned_packages <- function(
     )
 }
 
-#'
+#' @export
+list_assigned_issues <- function(issues) {
+    vapply(
+        issues, function(issue) extract_repo_urls(issue$body), character(1L)
+    )
+}
+
 #' @export
 check_github_issues <- function(issues, base_repo_dir = ".") {
     # Process each issue
     for (issue in issues) {
         # Set working directory to repository
         oldwd <- setwd(base_repo_dir)
+
+        issue_number <- basename(body$url)
         # Extract repository information from issue body
-        repo_url <- extract_repo_url(issue$body)
+        repo_url <- extract_repo_urls(issue$body)
 
         if (!is.null(repo_url)) {
             # Define paths
@@ -72,42 +82,49 @@ check_github_issues <- function(issues, base_repo_dir = ".") {
     }
 }
 
-# extract repository URLs from body and comments
-extract_repo_urls <- function(
-    body, org = "Bioconductor", repo = "contributions", issue_number = NULL
-) {
+#' @export
+extract_repo_urls <- function(body) {
     # Regular expression to find GitHub repository URLs
     url_pattern <- "https://github\\.com/[a-zA-Z0-9-]+/[a-zA-Z0-9-]+"
+
+    # Extract URLs from body
+    regmatches(body, gregexpr(url_pattern, body))[[1]]
+}
+
+#' @export
+get_additional_packages <- function(
+    issue, org = "Bioconductor", repo = "contributions", issue_number = NULL
+) {
+    stopifnot(all(c("url", "body") %in% names(issue)))
+    # Extract URLs from body
+    body_urls <- extract_repo_urls(issue$body)
+    issue_number <- basename(issue$url)
+
     additional_package_pattern <-
         "AdditionalPackage: (https://github\\.com/[a-zA-Z0-9-]+/[a-zA-Z0-9-]+)"
 
-    # Extract URLs from body
-    body_urls <- regmatches(body, gregexpr(url_pattern, body))[[1]]
-
     # Extract URLs from comments if issue_number is provided
     comment_urls <- c()
-    if (!is.null(issue_number)) {
-        comments <- gh::gh(
-            "/repos/{owner}/{repo}/issues/{issue_number}/comments",
-            owner = repo_owner,
-            repo = repo_name,
-            issue_number = issue_number
-        )
+    comments <- gh::gh(
+        "/repos/{owner}/{repo}/issues/{issue_number}/comments",
+        owner = org,
+        repo = repo,
+        issue_number = issue_number
+    )
 
-        for (comment in comments) {
-            # Look for AdditionalPackage: URLs
-            urls <- regmatches(
-                comment$body,
-                gregexpr(additional_package_pattern, comment$body, perl = TRUE)
-            )
-            if (length(urls[[1]]) > 0) {
-                # Extract the actual URL
-                extracted_urls <- gsub("AdditionalPackage: ", "", urls[[1]])
-                comment_urls <- c(comment_urls, extracted_urls)
-            }
+    for (comment in comments) {
+        # Look for AdditionalPackage: URLs
+        urls <- regmatches(
+            comment$body,
+            gregexpr(additional_package_pattern, comment$body, perl = TRUE)
+        )
+        if (length(urls[[1L]])) {
+            # Extract the actual URL
+            extracted_urls <- gsub("AdditionalPackage: ", "", urls[[1]])
+            comment_urls <- c(comment_urls, extracted_urls)
         }
     }
 
     # Combine and return unique URLs
-    return(unique(c(body_urls, comment_urls)))
+    unique(c(body_urls, comment_urls))
 }
