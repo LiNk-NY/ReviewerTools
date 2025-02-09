@@ -1,6 +1,7 @@
 #' @examples
 #' reviews <- get_assigned_packages("LiNk-NY")
 #' list_assigned_issues(reviews)
+#' ## pull any additional packages
 #' get_additional_packages(reviews[[2L]])
 #' check_github_issues(reviews, base_repo_dir = "~/reviews")
 #' @export
@@ -33,7 +34,7 @@ check_github_issues <- function(issues, base_repo_dir = ".") {
         # Set working directory to repository
         oldwd <- setwd(base_repo_dir)
 
-        issue_number <- basename(body$url)
+        issue_number <- basename(issue$url)
         # Extract repository information from issue body
         repo_url <- extract_repo_urls(issue$body)
 
@@ -46,10 +47,13 @@ check_github_issues <- function(issues, base_repo_dir = ".") {
             if (!dir.exists(repo_path)) {
                 gert::git_clone(repo_url, path = repo_path)
             } else {
-                gert::git_pull(repo = repo_path)
+                gert::git_pull(repo = repo_name)
             }
 
             # Prepare output file paths
+            install_log <- file.path(
+                base_repo_dir, paste0(repo_name, "_install.txt")
+            )
             build_log <- file.path(
                 base_repo_dir, paste0(repo_name, "_build.txt")
             )
@@ -60,19 +64,31 @@ check_github_issues <- function(issues, base_repo_dir = ".") {
             # Install dependencies and check package
             tryCatch({
                 # Capture install output
-                sink(
-                    file.path(base_repo_dir, paste0(repo_name, "_install.txt"))
-                )
+                message("Working on ", repo_name, ":")
+                sink(install_log)
                 remotes::install_local(
-                    repos = BiocManager::repositories(), dependencies = TRUE
+                    path = repo_name,
+                    repos = BiocManager::repositories(),
+                    dependencies = TRUE,
+                    upgrade = "never"
                 )
                 sink()
 
                 # Build package with output log
-                system(paste0("R CMD build . > ", build_log, " 2>&1"))
+                sink(build_log)
+                devtools::build(
+                    pkg = repo_name, vignettes = FALSE
+                )
+                sink()
 
                 # Check package with output log
-                system(paste0("R CMD check *.tar.gz > ", check_log, " 2>&1"))
+                sink(check_log)
+                rcmdcheck::rcmdcheck(
+                    path = repo_name,
+                    build_args = "--no-build-vignettes",
+                    args = c("--no-manual", "--no-vignettes"),
+                )
+                sink()
             }, error = function(e) {
                 message("Error processing repository: ", repo_url)
                 print(e)
