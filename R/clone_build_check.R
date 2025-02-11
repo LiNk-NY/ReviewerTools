@@ -84,7 +84,7 @@ check_github_issues <- function(issues, base_repo_dir = ".") {
 
         # Build package with output log
         sink(build_log)
-        devtools::build(
+        pkgbuild::build(
             pkg = repo_name, vignettes = FALSE
         )
         sink()

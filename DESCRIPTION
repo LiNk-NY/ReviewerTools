@@ -11,7 +11,9 @@ Imports:
     BiocManager,
     gert,
     gh,
-    remotes
+    pkgbuild,
+    remotes,
+    rcmdcheck
 License: Artistic-2.0
 Encoding: UTF-8
 Roxygen: list(markdown = TRUE)
