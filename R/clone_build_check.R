@@ -6,7 +6,7 @@
 #' check_github_issues(reviews, base_repo_dir = "~/reviews")
 #' @export
 get_assigned_packages <- function(
-    username,  org = "Bioconductor",  repo = "contributions"
+    username, org = "Bioconductor", repo = "contributions"
 ) {
     if (missing(username))
         stop("Please provide a GitHub username.")
@@ -38,64 +38,95 @@ check_github_issues <- function(issues, base_repo_dir = ".") {
         # Extract repository information from issue body
         repo_url <- extract_repo_urls(issue$body)
 
-        if (!is.null(repo_url)) {
-            # Define paths
-            repo_name <- basename(repo_url)
-            repo_path <- file.path(base_repo_dir, repo_name)
-
-            # Clone or update repository
-            if (!dir.exists(repo_path)) {
-                gert::git_clone(repo_url, path = repo_path)
-            } else {
-                gert::git_pull(repo = repo_name)
-            }
-
-            # Prepare output file paths
-            install_log <- file.path(
-                base_repo_dir, paste0(repo_name, "_install.txt")
-            )
-            build_log <- file.path(
-                base_repo_dir, paste0(repo_name, "_build.txt")
-            )
-            check_log <- file.path(
-                base_repo_dir, paste0(repo_name, "_check.txt")
-            )
-
-            # Install dependencies and check package
-            tryCatch({
-                # Capture install output
-                message("Working on ", repo_name, ":")
-                sink(install_log)
-                remotes::install_local(
-                    path = repo_name,
-                    repos = BiocManager::repositories(),
-                    dependencies = TRUE,
-                    upgrade = "never"
-                )
-                sink()
-
-                # Build package with output log
-                sink(build_log)
-                devtools::build(
-                    pkg = repo_name, vignettes = FALSE
-                )
-                sink()
-
-                # Check package with output log
-                sink(check_log)
-                rcmdcheck::rcmdcheck(
-                    path = repo_name,
-                    build_args = "--no-build-vignettes",
-                    args = c("--no-manual", "--no-vignettes"),
-                )
-                sink()
-            }, error = function(e) {
-                message("Error processing repository: ", repo_url)
-                print(e)
-            })
-        }
+        .install_build_check(repo_url)
         setwd(oldwd)
     }
+}
+
+.install_build_check <- function(repo_url, base_repo_dir = ".") {
+    stopifnot(
+        isScalarCharacter(repo_url), isScalarCharacter(base_repo_dir)
+    )
+    # Define paths
+    repo_name <- basename(repo_url)
+    repo_path <- file.path(base_repo_dir, repo_name)
+
+    # Clone or update repository
+    if (!dir.exists(repo_path)) {
+        gert::git_clone(repo_url, path = repo_path)
+    } else {
+        gert::git_pull(repo = repo_name)
+    }
+
+    # Prepare output file paths
+    install_log <- file.path(
+        base_repo_dir, paste0(repo_name, "_install.txt")
+    )
+    build_log <- file.path(
+        base_repo_dir, paste0(repo_name, "_build.txt")
+    )
+    check_log <- file.path(
+        base_repo_dir, paste0(repo_name, "_check.txt")
+    )
+
+    # Install dependencies and check package
+    tryCatch({
+        # Capture install output
+        message("Working on ", repo_name, ":")
+        sink(install_log)
+        remotes::install_local(
+            path = repo_name,
+            repos = BiocManager::repositories(),
+            dependencies = TRUE,
+            upgrade = "never"
+        )
+        sink()
+
+        # Build package with output log
+        sink(build_log)
+        devtools::build(
+            pkg = repo_name, vignettes = FALSE
+        )
+        sink()
+
+        # Check package with output log
+        sink(check_log)
+        rcmdcheck::rcmdcheck(
+            path = repo_name,
+            build_args = "--no-build-vignettes",
+            args = c("--no-manual", "--no-vignettes"),
+        )
+        sink()
+    }, error = function(e) {
+        message("Error processing repository: ", repo_url)
+        print(e)
+    })
+}
+
+#' @examples
+#' clone_check_github("3039", base_repo_dir = "~/reviews")
+#'
+#' @importFrom BiocBaseUtils isScalarCharacter
+#'
+#' @export
+clone_check_github <- function(
+    issue_number, org = "Bioconductor", repo = "contributions",
+    base_repo_dir = "."
+) {
+    issue <- gh::gh(
+        "/repos/{owner}/{repo}/issues/{issue_number}",
+        owner = org,
+        repo = repo,
+        issue_number = issue_number
+    )
+
+    oldwd <- setwd(base_repo_dir)
+
+    repo_url <- extract_repo_urls(issue$body)
+
+    .install_build_check(repo_url)
+
+    setwd(oldwd)
 }
 
 #' @export
