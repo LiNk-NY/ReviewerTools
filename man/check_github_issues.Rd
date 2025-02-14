@@ -70,10 +70,11 @@ single GitHub repository with the issue number as input.
 }
 \examples{
 reviews <- get_assigned_packages("LiNk-NY")
-check_github_issues(reviews, base_repo_dir = "~/reviews")
+dir.create(tdr <- tempfile())
+check_github_issues(reviews, base_repo_dir = tdr)
 list_assigned_issues(reviews)
 
-clone_check_github("3039", base_repo_dir = "~/reviews")
+clone_check_github("3039", base_repo_dir = tdr)
 
 \dontshow{if (interactive()) (if (getRversion() >= "3.4") withAutoprint else force)(\{ # examplesIf}
 ## pull any additional packages
