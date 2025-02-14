@@ -1,0 +1,120 @@
+---
+title: "ReviewerTools: Quick Start"
+name: Marcel Ramos
+date: "Compiled `r BiocStyle::doc_date()`; Modified 14 February 2025"
+vignette: |
+  %\VignetteIndexEntry{ReviewerTools: Quick Start}
+  %\VignetteEngine{knitr::rmarkdown}
+  %\VignetteEncoding{UTF-8}
+output:
+  BiocStyle::html_document:
+    toc_float: true
+package: ReviewerTools
+---
+
+```{r setup, include=FALSE}
+knitr::opts_chunk$set(cache = TRUE)
+```
+
+# ReviewerTools
+
+The goal of `ReviewerTools` is to provide a set of tools to facilitate the
+review process of R / Bioconductor packages. The package is designed to
+use a mix of R packages and `system` commands to clone, install, build, and
+check packages from the Bioconductor GitHub contributions repository.
+
+## Installation
+
+You can install the development version of `ReviewerTools` from GitHub with:
+
+```{r,eval=FALSE}
+if (!require("BiocManager", quietly = TRUE))
+    install.packages("BiocManager")
+
+BiocManager::install("Bioconductor/ReviewerTools")
+```
+
+## Setup
+
+In order to use the `gh` package, you will need to create a GitHub personal
+access token. You can do this by going to your GitHub account settings, then
+clicking on "Developer settings" -> "Personal access tokens" -> "Fine-grained
+Tokens". You will need to select either "All repositories" or "Only select
+repositories" under "Repository Access." You can then add the token using:
+
+```{r,eval=FALSE}
+library(gitcreds)
+gitcreds_set()
+```
+
+### Using Bioconductor Docker
+
+We highly recommend using the Bioconductor Docker containers to run the
+`ReviewerTools` package. Refer to the
+[Bioconductor Docker](https://bioconductor.org/help/docker/) page for more
+information. We also recommend using our convenience script to run the
+Bioconductor Docker container with the volume mounts for installed packages. See
+the GitHub repository <https://github.com/waldronlab/bioconductor/>. Using
+the script, one can run the Bioconductor Docker container with the following:
+
+```sh
+./bioconductor -v devel 
+```
+
+Note that the `ReviewerTools` package must be installed separately within the
+container.
+
+## Usage
+
+### Package load
+
+```{r}
+library(ReviewerTools)
+```
+
+### Install, build, and check on GitHub issues
+
+The main function in `ReviewerTools` is `check_github_issues`, which pulls
+all the reviewer's issues from the `Bioconductor/contributions` repository
+and checks the associated packages. In order to obtain the issues, the
+`gh` package is used to interact with the GitHub API. The function to
+retrieve the issues is `get_assigned_packages`.
+
+```{r}
+reviews <- get_assigned_packages("LiNk-NY")
+class(reviews)
+```
+
+The `check_github_issues` function processes a list of GitHub issues, cloning
+the repositories, installing dependencies, building the package, and checking
+the package. In this example, we will run `check_github_issues` on the first
+assigned review by subsetting the `reviews` object with a single bracket `[`
+subset.
+
+```{r}
+dir.create(tdr <- tempfile())
+check_github_issues(reviews[1L], base_repo_dir = tdr, output_dir = tdr)
+```
+
+## Inspecting outputs
+
+The `check_github_issues` function will clone the packages in the
+`base_repo_dir` and save any outputs to the `output_dir`. For flexibility,
+the folder location may be different. One can inspect the outputs with a
+text editor or with R via:
+
+```{r}
+pkgName <- basename(list_assigned_issues(reviews[1L]))
+inst_file <- file.path(tdr, paste0(pkgName, "_install.txt"))
+readLines(inst_file)
+```
+
+## Session Info
+
+<details> <summary> Click here to expand </summary>
+
+```{r}
+sessionInfo()
+```
+
+</details>
