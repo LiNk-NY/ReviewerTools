@@ -72,31 +72,42 @@ check_github_issues <- function(issues, base_repo_dir = ".") {
     # Install dependencies and check package
     tryCatch({
         # Capture install output
-        message("Working on ", repo_name, ":")
-        sink(install_log)
-        remotes::install_local(
-            path = repo_name,
-            repos = BiocManager::repositories(),
-            dependencies = TRUE,
-            upgrade = "never"
+        install_fun <- function(repo_name) {
+            remotes::install_local(
+                path = repo_name,
+                dependencies = TRUE,
+                upgrade = "never",
+                repos = BiocManager::repositories(),
+                force = TRUE,
+                build = FALSE,
+                INSTALL_opts = c(
+                    "--no-test-load", "--no-staged-install",
+                    "--no-multiarch", "--with-keep.source"
+                )
+            )
+        }
+        callr::r_safe(
+            install_fun,
+            args = list(repo_name),
+            stdout = install_log,
+            stderr = install_log
         )
-        sink()
-
         # Build package with output log
-        sink(build_log)
-        pkgbuild::build(
-            pkg = repo_name, vignettes = FALSE
+        system(
+            paste0(
+                R.home("bin"), .Platform$file.sep,  "R",
+                " CMD build --no-manual --no-build-vignettes ",
+                repo_name, " > ", build_log, " 2>&1"
+            )
         )
-        sink()
-
         # Check package with output log
-        sink(check_log)
-        rcmdcheck::rcmdcheck(
-            path = repo_name,
-            build_args = "--no-build-vignettes",
-            args = c("--no-manual", "--no-vignettes"),
+        system(
+            paste0(
+                R.home("bin"), .Platform$file.sep,  "R",
+                " CMD check --no-vignettes ",
+                repo_name, "*.tar.gz > ", check_log, " 2>&1"
+            )
         )
-        sink()
     }, error = function(e) {
         message("Error processing repository: ", repo_url)
         print(e)
