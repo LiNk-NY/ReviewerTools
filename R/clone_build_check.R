@@ -1,13 +1,77 @@
+#' @name check_github_issues
+#'
+#' @title Clone, build, and check Bioconductor contributions directly from
+#'   GitHub
+#'
+#' @description The functions are designed to be used with the GitHub API and
+#'   the `gh` package. The typical workflow is to fetch issues assigned to a
+#'   specific Bioconductor reviewer. The reviewer can then extract the
+#'   repository URLs from the issue body and clone, install dependencies, build,
+#'   and check the package.
+#'
+#' @details
+#' * `check_github_issues`, processes a list of GitHub
+#'   issues, cloning the repositories, installing dependencies, building the
+#'   package, and checking the package.
+#'
+#' * `get_assigned_packages` fetches issues assigned to a specific GitHub
+#'   username (reviewer).
+#'
+#' * `list_assigned_issues` extracts repository URLs from the issue bodies.
+#'
+#' * `clone_check_github` clones, installs dependencies, builds, and checks a
+#'   single GitHub repository with the issue number as input.
+#'
+#' * `get_additional_packages` extracts additional repository URLs from the
+#'   `AdditionalPackage` comment within an issue.
+#'
+#' @param issues `gh_response` / `list` GitHub issues obtained by
+#'   `get_assigned_packages`
+#'
+#' @param base_repo_dir `character(1)` The base directory where the repositories
+#'   will be cloned to. Default is the current working directory.
+#'
+#' @param username `character(1)` The GitHub username of the reviewer.
+#'
+#' @param org `character(1)` The GitHub organization. Default is "Bioconductor".
+#'
+#' @param repo `character(1)` The GitHub repository of the issue tracker (by
+#'   default "contributions").
+#'
+#' @importFrom BiocBaseUtils isScalarCharacter
+#'
 #' @examples
 #' reviews <- get_assigned_packages("LiNk-NY")
-#' list_assigned_issues(reviews)
-#' ## pull any additional packages
-#' get_additional_packages(reviews[[2L]])
 #' check_github_issues(reviews, base_repo_dir = "~/reviews")
+#' @export
+check_github_issues <- function(issues, base_repo_dir = ".") {
+    stopifnot(
+        inherits(issues, "gh_response") || is.list(issues),
+        isScalarCharacter(base_repo_dir)
+    )
+    # Process each issue
+    for (issue in issues) {
+        # Set working directory to repository
+        oldwd <- setwd(base_repo_dir)
+
+        issue_number <- basename(issue$url)
+        # Extract repository information from issue body
+        repo_url <- .extract_repo_urls(issue$body)
+
+        .install_build_check(repo_url)
+        setwd(oldwd)
+    }
+}
+
+#' @rdname check_github_issues
 #' @export
 get_assigned_packages <- function(
     username, org = "Bioconductor", repo = "contributions"
 ) {
+    stopifnot(
+        isScalarCharacter(username),
+        isScalarCharacter(org), isScalarCharacter(repo)
+    )
     if (missing(username))
         stop("Please provide a GitHub username.")
     # Fetch issues assigned to the specified username
@@ -20,27 +84,16 @@ get_assigned_packages <- function(
     )
 }
 
+#' @rdname check_github_issues
+#' @examples
+#' list_assigned_issues(reviews)
+#'
 #' @export
 list_assigned_issues <- function(issues) {
+    stopifnot(inherits(issues, "gh_response") || is.list(issues))
     vapply(
-        issues, function(issue) extract_repo_urls(issue$body), character(1L)
+        issues, function(issue) .extract_repo_urls(issue$body), character(1L)
     )
-}
-
-#' @export
-check_github_issues <- function(issues, base_repo_dir = ".") {
-    # Process each issue
-    for (issue in issues) {
-        # Set working directory to repository
-        oldwd <- setwd(base_repo_dir)
-
-        issue_number <- basename(issue$url)
-        # Extract repository information from issue body
-        repo_url <- extract_repo_urls(issue$body)
-
-        .install_build_check(repo_url)
-        setwd(oldwd)
-    }
 }
 
 .install_build_check <- function(repo_url, base_repo_dir = ".") {
@@ -114,10 +167,9 @@ check_github_issues <- function(issues, base_repo_dir = ".") {
     })
 }
 
+#' @rdname check_github_issues
 #' @examples
 #' clone_check_github("3039", base_repo_dir = "~/reviews")
-#'
-#' @importFrom BiocBaseUtils isScalarCharacter
 #'
 #' @export
 clone_check_github <- function(
@@ -133,15 +185,14 @@ clone_check_github <- function(
 
     oldwd <- setwd(base_repo_dir)
 
-    repo_url <- extract_repo_urls(issue$body)
+    repo_url <- .extract_repo_urls(issue$body)
 
     .install_build_check(repo_url)
 
     setwd(oldwd)
 }
 
-#' @export
-extract_repo_urls <- function(body) {
+.extract_repo_urls <- function(body) {
     # Regular expression to find GitHub repository URLs
     url_pattern <- "https://github\\.com/[a-zA-Z0-9-]+/[a-zA-Z0-9-]+"
 
@@ -149,13 +200,18 @@ extract_repo_urls <- function(body) {
     regmatches(body, gregexpr(url_pattern, body))[[1]]
 }
 
+#' @rdname check_github_issues
+#' @examplesIf interactive()
+#' ## pull any additional packages
+#' get_additional_packages(reviews[[2L]])
+#'
 #' @export
 get_additional_packages <- function(
     issue, org = "Bioconductor", repo = "contributions", issue_number = NULL
 ) {
     stopifnot(all(c("url", "body") %in% names(issue)))
     # Extract URLs from body
-    body_urls <- extract_repo_urls(issue$body)
+    body_urls <- .extract_repo_urls(issue$body)
     issue_number <- basename(issue$url)
 
     additional_package_pattern <-
