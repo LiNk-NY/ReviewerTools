@@ -45,7 +45,8 @@
 #'
 #' @examples
 #' reviews <- get_assigned_packages("LiNk-NY")
-#' check_github_issues(reviews, base_repo_dir = "~/reviews")
+#' dir.create(tdr <- tempfile())
+#' check_github_issues(reviews, base_repo_dir = tdr)
 #' @export
 check_github_issues <- function(issues, base_repo_dir = ".", output_dir = ".") {
     stopifnot(
@@ -175,7 +176,7 @@ list_assigned_issues <- function(issues) {
 
 #' @rdname check_github_issues
 #' @examples
-#' clone_check_github("3039", base_repo_dir = "~/reviews")
+#' clone_check_github("3039", base_repo_dir = tdr)
 #'
 #' @export
 clone_check_github <- function(
