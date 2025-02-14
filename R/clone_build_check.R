@@ -31,6 +31,9 @@
 #' @param base_repo_dir `character(1)` The base directory where the repositories
 #'   will be cloned to. Default is the current working directory.
 #'
+#' @param output_dir `character(1)` The directory where the output files will be
+#'   saved. Default is the current working directory.
+#'
 #' @param username `character(1)` The GitHub username of the reviewer.
 #'
 #' @param org `character(1)` The GitHub organization. Default is "Bioconductor".
@@ -44,7 +47,7 @@
 #' reviews <- get_assigned_packages("LiNk-NY")
 #' check_github_issues(reviews, base_repo_dir = "~/reviews")
 #' @export
-check_github_issues <- function(issues, base_repo_dir = ".") {
+check_github_issues <- function(issues, base_repo_dir = ".", output_dir = ".") {
     stopifnot(
         inherits(issues, "gh_response") || is.list(issues),
         isScalarCharacter(base_repo_dir)
@@ -58,7 +61,9 @@ check_github_issues <- function(issues, base_repo_dir = ".") {
         # Extract repository information from issue body
         repo_url <- .extract_repo_urls(issue$body)
 
-        .install_build_check(repo_url)
+        .install_build_check(
+            repo_url, base_repo_dir = base_repo_dir, output_dir = output_dir
+        )
         setwd(oldwd)
     }
 }
@@ -96,9 +101,10 @@ list_assigned_issues <- function(issues) {
     )
 }
 
-.install_build_check <- function(repo_url, base_repo_dir = ".") {
+.install_build_check <- function(repo_url, base_repo_dir, output_dir) {
     stopifnot(
-        isScalarCharacter(repo_url), isScalarCharacter(base_repo_dir)
+        isScalarCharacter(repo_url), isScalarCharacter(base_repo_dir),
+        isScalarCharacter(output_dir)
     )
     # Define paths
     repo_name <- basename(repo_url)
@@ -113,13 +119,13 @@ list_assigned_issues <- function(issues) {
 
     # Prepare output file paths
     install_log <- file.path(
-        base_repo_dir, paste0(repo_name, "_install.txt")
+        output_dir, paste0(repo_name, "_install.txt")
     )
     build_log <- file.path(
-        base_repo_dir, paste0(repo_name, "_build.txt")
+        output_dir, paste0(repo_name, "_build.txt")
     )
     check_log <- file.path(
-        base_repo_dir, paste0(repo_name, "_check.txt")
+        output_dir, paste0(repo_name, "_check.txt")
     )
 
     # Install dependencies and check package
@@ -174,7 +180,7 @@ list_assigned_issues <- function(issues) {
 #' @export
 clone_check_github <- function(
     issue_number, org = "Bioconductor", repo = "contributions",
-    base_repo_dir = "."
+    base_repo_dir = ".", output_dir = "."
 ) {
     issue <- gh::gh(
         "/repos/{owner}/{repo}/issues/{issue_number}",
@@ -187,7 +193,9 @@ clone_check_github <- function(
 
     repo_url <- .extract_repo_urls(issue$body)
 
-    .install_build_check(repo_url)
+    .install_build_check(
+        repo_url, base_repo_dir = base_repo_dir, output_dir = output_dir
+    )
 
     setwd(oldwd)
 }

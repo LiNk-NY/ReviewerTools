@@ -9,7 +9,7 @@
 \title{Clone, build, and check Bioconductor contributions directly from
 GitHub}
 \usage{
-check_github_issues(issues, base_repo_dir = ".")
+check_github_issues(issues, base_repo_dir = ".", output_dir = ".")
 
 get_assigned_packages(username, org = "Bioconductor", repo = "contributions")
 
@@ -19,7 +19,8 @@ clone_check_github(
   issue_number,
   org = "Bioconductor",
   repo = "contributions",
-  base_repo_dir = "."
+  base_repo_dir = ".",
+  output_dir = "."
 )
 
 get_additional_packages(
@@ -35,6 +36,9 @@ get_additional_packages(
 
 \item{base_repo_dir}{\code{character(1)} The base directory where the repositories
 will be cloned to. Default is the current working directory.}
+
+\item{output_dir}{\code{character(1)} The directory where the output files will be
+saved. Default is the current working directory.}
 
 \item{username}{\code{character(1)} The GitHub username of the reviewer.}
 
